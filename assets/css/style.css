@@ -253,3 +253,14 @@ body.menu-open .m-cta { opacity: 1; transform: translateY(0); transition-delay: 
   .nav-cta  { display: none; }
   .brk { display: none; }
 }
+
+/* Portrait phones: a full-bleed 16:9 video would crop the hands off the sides.
+   Fit the whole frame into a centred band so both hands + flower stay visible
+   (object-fit cover on a box matching the video aspect = no crop, mask still aligns). */
+@media (max-width: 1023px) and (orientation: portrait) {
+  .bg-video, .hero-freeze {
+    inset: auto; top: 56%; left: 0; right: 0;
+    width: 100%; height: auto; aspect-ratio: 3828 / 2164;
+    transform: translate(0, -50%) translateZ(0);
+  }
+}
