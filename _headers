@@ -1,0 +1,12 @@
+# Cloudflare Pages headers.
+# The HTML is never cached by browsers, so the stylesheet and script must not be
+# either, or a returning visitor runs new HTML against a stale script. Media can
+# cache for a long time; it is replaced rarely and the filenames do not change.
+/assets/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+/assets/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/assets/video/*
+  Cache-Control: public, max-age=604800
+/assets/img/*
+  Cache-Control: public, max-age=604800
