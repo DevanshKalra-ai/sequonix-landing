@@ -269,7 +269,7 @@
       if (hasGSAP && !reduceMotion) {
         gsap.registerPlugin(ScrollTrigger);
         ScrollTrigger.create({
-          trigger: host, start: "top 85%", end: "bottom 45%", scrub: 0.6,
+          trigger: host, start: "top 92%", end: "center center", scrub: 0.4,
           onUpdate: function (self) { progress = self.progress; schedule(); }
         });
       } else { progress = 1; }
