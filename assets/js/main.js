@@ -10,13 +10,22 @@
 
   if (reduceMotion || !hasGSAP) document.body.classList.add("motion-off");
 
+  /* Each block runs on its own, so one failure never takes the rest of the page down. */
+  function safe(name, fn) {
+    try { fn(); }
+    catch (e) {
+      (window.__seqErrors = window.__seqErrors || []).push(name + ": " + ((e && e.stack) || e));
+      if (window.console) console.error("[sequonix] " + name + " failed", e);
+    }
+  }
+
   /* ---------- HERO VIDEO (kept exactly as before) ----------
      • Single seamless boomerang loop (forward+reverse) -> no crossfade, no dim.
      • The hands fly in once (intro), then the frozen still fades in to hold them.
      • Video pauses while the hero is off-screen (perf). */
   var video = document.getElementById("bgVideo");
   var freeze = document.querySelector(".hero-freeze");
-  if (video) {
+  safe("hero-video", function () { if (!video) return;
     var frozen = false;
     var INTRO_RATE = 1.7;          // hands fly in faster…
     video.playbackRate = INTRO_RATE;
@@ -39,7 +48,7 @@
         });
       }, { threshold: 0.05 }).observe(heroEl);
     }
-  }
+  });
 
   /* ---------- YEAR ---------- */
   var y = document.querySelector("[data-year]");
@@ -59,7 +68,7 @@
 
   /* ---------- SMOOTH SCROLL (weighted, one rAF loop) ---------- */
   var lenis = null;
-  if (hasLenis && !reduceMotion) {
+  safe("smooth-scroll", function () { if (!hasLenis || reduceMotion) return;
     lenis = new Lenis({
       duration: 1.15,
       easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); },
@@ -72,10 +81,10 @@
     } else {
       (function raf(time) { lenis.raf(time); requestAnimationFrame(raf); })(0);
     }
-  }
+  });
 
   /* anchor links */
-  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+  safe("anchors", function () { document.querySelectorAll('a[href^="#"]').forEach(function (a) {
     a.addEventListener("click", function (e) {
       var id = a.getAttribute("href");
       if (id.length < 2) return;
@@ -86,10 +95,10 @@
       if (lenis) lenis.scrollTo(el, { offset: id === "#top" ? 0 : -24 });
       else el.scrollIntoView({ behavior: "smooth" });
     });
-  });
+  }); });
 
   /* ---------- REVEALS (one kind, used sparingly) ---------- */
-  (function reveals() {
+  safe("reveals", function () {
     var els = document.querySelectorAll("[data-reveal]");
     if (reduceMotion || !("IntersectionObserver" in window)) { els.forEach(function (el) { el.classList.add("in"); }); return; }
     var io = new IntersectionObserver(function (entries) {
@@ -100,10 +109,10 @@
       });
     }, { threshold: 0.15, rootMargin: "0px 0px -8% 0px" });
     els.forEach(function (el) { io.observe(el); });
-  })();
+  });
 
   /* ---------- COUNTERS ---------- */
-  (function counters() {
+  safe("counters", function () {
     var nums = document.querySelectorAll("[data-count]");
     if (!nums.length) return;
     if (!reduceMotion) nums.forEach(function (el) { el.textContent = "0" + (el.getAttribute("data-suffix") || ""); });
@@ -125,10 +134,10 @@
       });
     }, { threshold: 0.4 });
     nums.forEach(function (n) { io.observe(n); });
-  })();
+  });
 
   /* ---------- PROCESS: light the step nearest the middle of the viewport ---------- */
-  (function processSteps() {
+  safe("process-steps", function () {
     var steps = Array.prototype.slice.call(document.querySelectorAll("[data-steps] .step"));
     if (!steps.length) return;
     if (reduceMotion) { steps.forEach(function (s) { s.classList.add("on"); }); return; }
@@ -148,7 +157,7 @@
     if (lenis) lenis.on("scroll", update); else window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
     update();
-  })();
+  });
 
   /* ============================================================
      DOT MATRIX — the hero's halftone hands, carried into the page.
@@ -156,7 +165,7 @@
      sampled the same way the hands are. Dots light up left to right
      as you scroll, and brighten near the cursor.
      ============================================================ */
-  (function dotMatrix() {
+  safe("dot-matrix", function () {
     var host = document.querySelector("[data-dotmatrix]");
     if (!host) return;
     var canvas = host.querySelector("canvas");
@@ -264,7 +273,10 @@
       }, { threshold: 0.05 }).observe(host);
     } else { visible = true; }
 
+    var started = false;
     function start() {
+      if (started) return;
+      started = true;
       layout();
       if (hasGSAP && !reduceMotion) {
         gsap.registerPlugin(ScrollTrigger);
@@ -275,10 +287,15 @@
       } else { progress = 1; }
       schedule();
     }
+    function safeStart() { safe("dot-matrix-start", start); }
+    /* start once the sampling font is in, but never wait more than a moment for it;
+       if the real font lands later, re-sample so the letterforms are right */
     if (document.fonts && document.fonts.load) {
-      document.fonts.load("500 32px Switzer").then(start, start);
-    } else { start(); }
-  })();
+      document.fonts.load("500 32px Switzer").then(safeStart, safeStart);
+      setTimeout(safeStart, 1200);
+      if (document.fonts.ready) document.fonts.ready.then(function () { if (started) { layout(); schedule(); } });
+    } else { safeStart(); }
+  });
 
-  if (hasGSAP && !reduceMotion) ScrollTrigger.refresh();
+  if (hasGSAP && !reduceMotion) safe("refresh", function () { ScrollTrigger.refresh(); });
 })();
