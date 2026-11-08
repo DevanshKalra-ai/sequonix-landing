@@ -297,5 +297,49 @@
     } else { safeStart(); }
   });
 
+  /* ---------- BOOKING (Cal.com popup) ----------
+     Every [data-book] link is a plain cal.com link, so it still works with no JS.
+     The embed script loads on first hover/focus or once the page is idle, and a
+     click opens the calendar over the page. Ctrl/Cmd-click still opens a new tab. */
+  safe("booking", function () {
+    var links = document.querySelectorAll("a[data-book]");
+    if (!links.length) return;
+    var NS = "discovery";
+    var calLink = links[0].getAttribute("href").split("cal.com/")[1];
+    var ready = false;
+    function load() {
+      if (ready) return; ready = true;
+      (function (C, A, L) {
+        var p = function (a, ar) { a.q.push(ar); }; var d = C.document;
+        C.Cal = C.Cal || function () {
+          var cal = C.Cal; var ar = arguments;
+          if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; }
+          if (ar[0] === L) {
+            var api = function () { p(api, arguments); }; var namespace = ar[1]; api.q = api.q || [];
+            if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); }
+            else p(cal, ar);
+            return;
+          }
+          p(cal, ar);
+        };
+      })(window, "https://app.cal.com/embed/embed.js", "init");
+      Cal("init", NS, { origin: "https://cal.com" });
+      Cal.ns[NS]("ui", { theme: "dark", cssVarsPerTheme: { dark: { "cal-brand": "#a855f7" } }, hideEventTypeDetails: false, layout: "month_view" });
+    }
+    Array.prototype.forEach.call(links, function (a) {
+      a.addEventListener("pointerenter", load, { once: true });
+      a.addEventListener("focus", load, { once: true });
+      a.addEventListener("click", function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        setMenu(false);
+        load();
+        Cal.ns[NS]("modal", { calLink: calLink, config: { layout: "month_view", theme: "dark" } });
+      });
+    });
+    var idle = window.requestIdleCallback || function (fn) { return setTimeout(fn, 2500); };
+    window.addEventListener("load", function () { idle(load, { timeout: 4000 }); });
+  });
+
   if (hasGSAP && !reduceMotion) safe("refresh", function () { ScrollTrigger.refresh(); });
 })();
