@@ -28,22 +28,60 @@
   safe("hero-video", function () { if (!video) return;
     var frozen = false;
     var INTRO_RATE = 1.7;          // hands fly in faster…
-    video.playbackRate = INTRO_RATE;
-    video.addEventListener("play", function () { if (!frozen) video.playbackRate = INTRO_RATE; });
+    var STILL = "assets/img/hero-frame.jpg";
+    var heroVisible = true;
+
+    /* iOS only autoplays a video it knows is muted and inline, so state both in JS as well */
+    video.muted = true; video.defaultMuted = true;
+    video.setAttribute("playsinline", ""); video.setAttribute("webkit-playsinline", "");
+
+    /* Safari resets playbackRate to defaultPlaybackRate when the media loads, so set both */
+    function applyRate() {
+      var r = frozen ? 1 : INTRO_RATE;
+      video.defaultPlaybackRate = r;
+      video.playbackRate = r;
+    }
+    applyRate();
+    video.addEventListener("loadedmetadata", applyRate);
+    video.addEventListener("play", applyRate);
+    video.addEventListener("playing", function () {
+      applyRate();
+      /* started late (after a tap): drop the stand-in still so the intro is seen */
+      if (!frozen) { if (freeze) freeze.classList.remove("show"); video.removeAttribute("poster"); }
+    });
     video.addEventListener("timeupdate", function () {
       /* freeze the hands once they're fully extended (~9s into the forward half) */
       if (!frozen && video.currentTime >= 9.0) {
         frozen = true;
-        video.playbackRate = 1;     // …then the flower loops at normal speed
+        applyRate();                // …then the flower loops at normal speed
         if (freeze) freeze.classList.add("show");
       }
     });
+
+    /* Autoplay refused (iPhone Low Power Mode, data saver): show the finished frame
+       instead of a black hero, and start the video on the visitor's first tap. */
+    function blocked() {
+      if (!video.paused || frozen) return;
+      video.poster = STILL;
+      if (freeze) freeze.classList.add("show");
+    }
+    function tryPlay() {
+      var p = video.play();
+      if (p && typeof p.catch === "function") p.catch(blocked);
+    }
+    function kick() { if (heroVisible && video.paused) tryPlay(); }
+    tryPlay();
+    setTimeout(function () { if (heroVisible && video.paused) blocked(); }, 2500);
+    ["touchend", "click", "keydown"].forEach(function (ev) { window.addEventListener(ev, kick, { passive: true }); });
+    window.addEventListener("pageshow", kick);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) kick(); });
 
     var heroEl = document.querySelector(".vx-hero");
     if (heroEl && "IntersectionObserver" in window) {
       new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
-          if (en.isIntersecting) { video.play().catch(function () {}); }
+          heroVisible = en.isIntersecting;
+          if (en.isIntersecting) { tryPlay(); }
           else { video.pause(); }
         });
       }, { threshold: 0.05 }).observe(heroEl);
