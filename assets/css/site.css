@@ -146,7 +146,7 @@ body.menu-open .m-cta { opacity: 1; transform: none; transition-delay: 320ms; }
 .bg-video {
   position: absolute; inset: 0; z-index: 0;
   width: 100%; height: 100%; object-fit: cover;
-  transform: translateZ(0); backface-visibility: hidden;
+  /* no translateZ / backface-visibility here: on iPhones they stop the video layer from being drawn */
 }
 .hero-freeze {
   position: absolute; inset: 0; z-index: 1;
@@ -385,7 +385,7 @@ body.menu-open .m-cta { opacity: 1; transform: none; transition-delay: 320ms; }
   .bg-video, .hero-freeze {
     inset: auto; top: 56%; left: 0; right: 0;
     width: 100%; height: auto; aspect-ratio: 3828 / 2164;
-    transform: translate(0, -50%) translateZ(0);
+    transform: translate(0, -50%);
   }
 }
 
