@@ -47,14 +47,14 @@
     video.addEventListener("playing", function () {
       applyRate();
       /* started late (after a tap): drop the stand-in still so the intro is seen */
-      if (!frozen) { if (freeze) freeze.classList.remove("show"); video.removeAttribute("poster"); }
+      if (!frozen) { if (freeze) freeze.classList.remove("show", "full"); video.removeAttribute("poster"); }
     });
     video.addEventListener("timeupdate", function () {
       /* freeze the hands once they're fully extended (~9s into the forward half) */
       if (!frozen && video.currentTime >= 9.0) {
         frozen = true;
         applyRate();                // …then the flower loops at normal speed
-        if (freeze) freeze.classList.add("show");
+        if (freeze) { freeze.classList.remove("full"); freeze.classList.add("show"); }
       }
     });
 
@@ -63,7 +63,7 @@
     function blocked() {
       if (!video.paused || frozen) return;
       video.poster = STILL;
-      if (freeze) freeze.classList.add("show");
+      if (freeze) freeze.classList.add("show", "full");
     }
     function tryPlay() {
       var p = video.play();
@@ -72,7 +72,15 @@
     function kick() { if (heroVisible && video.paused) tryPlay(); }
     tryPlay();
     setTimeout(function () { if (heroVisible && video.paused) blocked(); }, 2500);
-    ["touchend", "click", "keydown"].forEach(function (ev) { window.addEventListener(ev, kick, { passive: true }); });
+    /* iPhones often refuse the very first start and accept a later one, so keep
+       asking: once the video has data, on a short timer, and when the page moves */
+    ["loadedmetadata", "loadeddata", "canplay", "canplaythrough"].forEach(function (ev) { video.addEventListener(ev, kick); });
+    var tries = 0;
+    var retry = setInterval(function () {
+      if (++tries > 24 || (!video.paused && video.currentTime > 0)) { clearInterval(retry); return; }
+      kick();
+    }, 250);
+    ["touchstart", "touchend", "click", "keydown", "scroll", "resize"].forEach(function (ev) { window.addEventListener(ev, kick, { passive: true }); });
     window.addEventListener("pageshow", kick);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) kick(); });
 
