@@ -29,7 +29,15 @@
     var frozen = false;
     var INTRO_RATE = 1.7;          // hands fly in faster…
     var STILL = "assets/img/hero-frame.jpg";
-    var heroVisible = true;
+    var heroEl = document.querySelector(".vx-hero");
+    /* Measure the hero's real position. iOS Safari can report it as off screen while
+       the page is still settling at load; trusting that paused the video for good. */
+    function heroOnScreen() {
+      if (!heroEl) return true;
+      var r = heroEl.getBoundingClientRect();
+      var h = window.innerHeight || document.documentElement.clientHeight;
+      return r.bottom > 0 && r.top < h;
+    }
 
     /* iOS only autoplays a video it knows is muted and inline, so state both in JS as well */
     video.muted = true; video.defaultMuted = true;
@@ -69,9 +77,9 @@
       var p = video.play();
       if (p && typeof p.catch === "function") p.catch(blocked);
     }
-    function kick() { if (heroVisible && video.paused) tryPlay(); }
+    function kick() { if (video.paused && heroOnScreen()) tryPlay(); }
     tryPlay();
-    setTimeout(function () { if (heroVisible && video.paused) blocked(); }, 2500);
+    setTimeout(function () { if (heroOnScreen() && video.paused) blocked(); }, 2500);
     /* iPhones often refuse the very first start and accept a later one, so keep
        asking: once the video has data, on a short timer, and when the page moves */
     ["loadedmetadata", "loadeddata", "canplay", "canplaythrough"].forEach(function (ev) { video.addEventListener(ev, kick); });
@@ -107,12 +115,11 @@
       tryPlay();
     }
 
-    var heroEl = document.querySelector(".vx-hero");
     if (heroEl && "IntersectionObserver" in window) {
       new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
-          heroVisible = en.isIntersecting;
-          if (en.isIntersecting) { tryPlay(); }
+          /* pause only when the hero is really gone (measured, not just reported) */
+          if (en.isIntersecting || heroOnScreen()) { tryPlay(); }
           else { video.pause(); }
         });
       }, { threshold: 0.05 }).observe(heroEl);
