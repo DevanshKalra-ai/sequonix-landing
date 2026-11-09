@@ -28,7 +28,9 @@
   safe("hero-video", function () { if (!video) return;
     var frozen = false;
     var INTRO_RATE = 1.7;          // hands fly in faster…
-    var STILL = "assets/img/hero-frame.jpg";
+    var FRAME = "assets/img/hero-frame.jpg";   // hands only; the crystal comes from the video through the mask hole
+    var STILL = "assets/img/hero-still.jpg";   // the whole picture, shown while autoplay is refused
+    var swapBack = 0;
     var heroEl = document.querySelector(".vx-hero");
     /* Measure the hero's real position. iOS Safari can report it as off screen while
        the page is still settling at load; trusting that paused the video for good. */
@@ -55,14 +57,18 @@
     video.addEventListener("playing", function () {
       applyRate();
       /* started late (after a tap): drop the stand-in still so the intro is seen */
-      if (!frozen) { if (freeze) freeze.classList.remove("show", "full"); video.removeAttribute("poster"); }
+      if (!frozen && freeze && freeze.classList.contains("full")) {
+        freeze.classList.remove("show");
+        clearTimeout(swapBack);
+        swapBack = setTimeout(function () { if (!frozen) { freeze.classList.remove("full"); freeze.src = FRAME; } }, 600);
+      }
     });
     video.addEventListener("timeupdate", function () {
       /* freeze the hands once they're fully extended (~9s into the forward half) */
       if (!frozen && video.currentTime >= 9.0) {
         frozen = true;
         applyRate();                // …then the flower loops at normal speed
-        if (freeze) { freeze.classList.remove("full"); freeze.classList.add("show"); }
+        if (freeze) { clearTimeout(swapBack); freeze.src = FRAME; freeze.classList.remove("full"); freeze.classList.add("show"); }
       }
     });
 
@@ -70,8 +76,7 @@
        instead of a black hero, and start the video on the visitor's first tap. */
     function blocked() {
       if (!video.paused || frozen) return;
-      video.poster = STILL;
-      if (freeze) freeze.classList.add("show", "full");
+      if (freeze) { clearTimeout(swapBack); freeze.src = STILL; freeze.classList.add("show", "full"); }
     }
     function tryPlay() {
       var p = video.play();
