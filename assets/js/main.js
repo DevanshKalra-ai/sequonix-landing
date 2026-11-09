@@ -76,6 +76,29 @@
     window.addEventListener("pageshow", kick);
     document.addEventListener("visibilitychange", function () { if (!document.hidden) kick(); });
 
+    /* sequonix.com/?vdebug shows what the browser reports about the hero video (for phone testing) */
+    if (/[?&]vdebug/.test(location.search)) {
+      var box = document.createElement("pre");
+      box.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;margin:0;padding:10px;background:rgba(0,0,0,.85);color:#c084fc;font:12px/1.4 monospace;white-space:pre-wrap;border:1px solid #7c3aed;border-radius:8px";
+      document.body.appendChild(box);
+      var lastErr = "none";
+      tryPlay = function () {
+        var p = video.play();
+        if (p && typeof p.catch === "function") p.catch(function (e) { lastErr = e.name + ": " + e.message; blocked(); });
+      };
+      var evs = [];
+      ["loadstart", "loadedmetadata", "canplay", "playing", "pause", "stalled", "suspend", "waiting", "error"].forEach(function (n) {
+        video.addEventListener(n, function () { evs.push(n + "@" + video.currentTime.toFixed(1)); if (evs.length > 8) evs.shift(); });
+      });
+      setInterval(function () {
+        box.textContent = "time " + video.currentTime.toFixed(2) + "  paused " + video.paused + "  ready " + video.readyState +
+          "  net " + video.networkState + "\nrate " + video.playbackRate + "  muted " + video.muted + "  frozen " + frozen +
+          "\nplay error: " + lastErr + (video.error ? "  media error " + video.error.code : "") +
+          "\nevents: " + evs.join(" ") + "\njs errors: " + ((window.__seqErrors || []).length) + "\n" + navigator.userAgent;
+      }, 500);
+      tryPlay();
+    }
+
     var heroEl = document.querySelector(".vx-hero");
     if (heroEl && "IntersectionObserver" in window) {
       new IntersectionObserver(function (entries) {
